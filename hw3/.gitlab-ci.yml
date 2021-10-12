@@ -1,0 +1,31 @@
+stages:
+  - build
+
+build-job:
+  stage: build
+  script:
+    - export DEBIAN_FRONTEND=noninteractive
+    - sudo apt update && sudo apt install sshpass -y
+    - REMOTE_BUILD_DIR=/home/$MASTER_USERNAME/build
+    - echo $REMOTE_BUILD_DIR
+    - sshpass -p $MASTER_PASS ssh -o StrictHostKeyChecking=no $MASTER_USERNAME@$MASTER_IP "[ -d $REMOTE_BUILD_DIR ] && echo $MASTER_PASS | sudo -S rm -rf $REMOTE_BUILD_DIR; mkdir -p $REMOTE_BUILD_DIR"
+    - sshpass -p $MASTER_PASS scp -r $(pwd) $MASTER_USERNAME@$MASTER_IP:/home/$MASTER_USERNAME/build
+    - >
+      sshpass -p $MASTER_PASS ssh -o StrictHostKeyChecking=no $MASTER_USERNAME@$MASTER_IP "
+        cd /home/$MASTER_USERNAME/build/project
+        echo $MASTER_PASS > password
+        sudo -S apt-get update < password
+        sudo -S apt-get install curl -y < password
+        command -v docker;
+        if [ $? -ne 0 ]; then
+          curl -fsSL https://get.docker.com -o get-docker.sh
+          sudo -S sh get-docker.sh < password
+          rm get-docker.sh
+        fi
+        sudo -S apt-get install docker-compose -y < password
+        sudo -S usermod -aG docker $MASTER_USERNAME < password
+        rm password
+        sudo -S service docker restart
+        service docker status
+        docker-compose up -d
+      "
