@@ -1,0 +1,25 @@
+version: '3.3'
+
+services:
+  redis:
+    image: redis
+    container_name: master
+    ports:
+      - "33333:6379"
+    networks:
+      - redis-replication
+
+  redis-slave:
+    image: redis
+    container_name: slave
+    ports:
+      - "33334:6379"
+    command: redis-server --slaveof master 6379
+    depends_on:
+      - redis
+    networks:
+      - redis-replication
+
+networks:
+  redis-replication:
+    driver: bridge
